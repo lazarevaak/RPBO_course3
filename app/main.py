@@ -1,6 +1,8 @@
 from datetime import date
+from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, Field, constr
 from sqlalchemy import Column, Date, Integer, String, create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
@@ -34,27 +36,46 @@ def get_db():
         db.close()
 
 
+# --- Schemas ---
+
+
+class TopicCreate(BaseModel):
+    title: constr(strip_whitespace=True, min_length=1)  # нельзя пустую строку
+    deadline: Optional[date] = None
+
+
+class TopicResponse(BaseModel):
+    id: int
+    title: str
+    deadline: Optional[date] = None
+    progress: int
+
+    class Config:
+        orm_mode = True
+
+
+class ProgressUpdate(BaseModel):
+    progress: int = Field(..., ge=0, le=100)  # проверка диапазона 0..100
+
+
 # --- Endpoints ---
 
 
-@app.post("/topics")
-def create_topic(
-    title: str, deadline: date | None = None, db: Session = Depends(get_db)
-):
-    topic = Topic(title=title, deadline=deadline)
+@app.post("/topics", response_model=TopicResponse)
+def create_topic(data: TopicCreate, db: Session = Depends(get_db)):
+    topic = Topic(title=data.title, deadline=data.deadline)
     db.add(topic)
     db.commit()
     db.refresh(topic)
     return topic
 
 
-@app.get("/topics")
+@app.get("/topics", response_model=list[TopicResponse])
 def list_topics(db: Session = Depends(get_db)):
     return db.query(Topic).all()
 
 
-@app.get("/topics/{topic_id}")
-@app.get("/topics/{topic_id}")
+@app.get("/topics/{topic_id}", response_model=TopicResponse)
 def get_topic(topic_id: int, db: Session = Depends(get_db)):
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
@@ -63,11 +84,11 @@ def get_topic(topic_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/topics/{topic_id}/progress")
-def update_progress(topic_id: int, progress: int, db: Session = Depends(get_db)):
+def update_progress(topic_id: int, data: ProgressUpdate, db: Session = Depends(get_db)):
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-    topic.progress = progress
+    topic.progress = data.progress
     db.commit()
     return {"status": "ok"}
 
@@ -75,7 +96,8 @@ def update_progress(topic_id: int, progress: int, db: Session = Depends(get_db))
 @app.delete("/topics/{topic_id}")
 def delete_topic(topic_id: int, db: Session = Depends(get_db)):
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
-    if topic:
-        db.delete(topic)
-        db.commit()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    db.delete(topic)
+    db.commit()
     return {"status": "deleted"}
