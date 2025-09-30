@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# === Запрет коммитов в main ===
+protected_branch="main"
+current_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if [ "$current_branch" = "$protected_branch" ]; then
+  echo "Commit to '$protected_branch' is forbidden. Please create a feature branch and open a PR."
+  exit 1
+fi
+
+# === Проверка non-ASCII имён файлов (как в шаблоне) ===
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    against=HEAD
+else
+    against=$(git hash-object -t tree /dev/null)
+fi
+
+allownonascii=$(git config --type=bool hooks.allownonascii)
+exec 1>&2
+
+if [ "$allownonascii" != "true" ] &&
+   test $(git diff-index --cached --name-only --diff-filter=A -z $against |
+     LC_ALL=C tr -d '[ -~]\0' | wc -c) != 0
+then
+    cat <<\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+EOF
+    exit 1
+fi
+
+# === Проверка пробелов (как в шаблоне) ===
+if ! git diff-index --check --cached $against; then
+    echo "Whitespace errors detected."
+    exit 1
+fi
+
+echo "Pre-commit checks passed on branch $current_branch"
