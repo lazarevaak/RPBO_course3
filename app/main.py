@@ -1,57 +1,81 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from datetime import date
 
-app = FastAPI(title="SecDev Course App", version="0.1.0")
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import Column, Date, Integer, String, create_engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
+app = FastAPI(title="Study Plan App", version="0.1.0")
 
-class ApiError(Exception):
-    def __init__(self, code: str, message: str, status: int = 400):
-        self.code = code
-        self.message = message
-        self.status = status
+# --- Database setup ---
+DATABASE_URL = "sqlite:///./studyplan.db"
 
-
-@app.exception_handler(ApiError)
-async def api_error_handler(request: Request, exc: ApiError):
-    return JSONResponse(
-        status_code=exc.status,
-        content={"error": {"code": exc.code, "message": exc.message}},
-    )
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    # Normalize FastAPI HTTPException into our error envelope
-    detail = exc.detail if isinstance(exc.detail, str) else "http_error"
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": {"code": "http_error", "message": detail}},
-    )
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    deadline = Column(Date, nullable=True)
+    progress = Column(Integer, default=0)  # 0..100
 
 
-@app.get("/health")
-def health():
+Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# --- Endpoints ---
+
+
+@app.post("/topics")
+def create_topic(
+    title: str, deadline: date | None = None, db: Session = Depends(get_db)
+):
+    topic = Topic(title=title, deadline=deadline)
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+
+@app.get("/topics")
+def list_topics(db: Session = Depends(get_db)):
+    return db.query(Topic).all()
+
+
+@app.get("/topics/{topic_id}")
+@app.get("/topics/{topic_id}")
+def get_topic(topic_id: int, db: Session = Depends(get_db)):
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return topic
+
+
+@app.put("/topics/{topic_id}/progress")
+def update_progress(topic_id: int, progress: int, db: Session = Depends(get_db)):
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    topic.progress = progress
+    db.commit()
     return {"status": "ok"}
 
 
-# Example minimal entity (for tests/demo)
-_DB = {"items": []}
-
-
-@app.post("/items")
-def create_item(name: str):
-    if not name or len(name) > 100:
-        raise ApiError(
-            code="validation_error", message="name must be 1..100 chars", status=422
-        )
-    item = {"id": len(_DB["items"]) + 1, "name": name}
-    _DB["items"].append(item)
-    return item
-
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    for it in _DB["items"]:
-        if it["id"] == item_id:
-            return it
-    raise ApiError(code="not_found", message="item not found", status=404)
+@app.delete("/topics/{topic_id}")
+def delete_topic(topic_id: int, db: Session = Depends(get_db)):
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if topic:
+        db.delete(topic)
+        db.commit()
+    return {"status": "deleted"}
