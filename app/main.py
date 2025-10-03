@@ -100,4 +100,4 @@ def delete_topic(topic_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Topic not found")
     db.delete(topic)
     db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted."}
