@@ -1,64 +1,13 @@
-from datetime import date
-from typing import Optional
-
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, Field, constr
-from sqlalchemy import Column, Date, Integer, String, create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session
+
+from app.database import Base, engine, get_db
+from app.models.topic import Topic
+from app.schemas.topic import ProgressUpdate, TopicCreate, TopicResponse
 
 app = FastAPI(title="Study Plan App", version="0.1.0")
 
-# --- Database setup ---
-DATABASE_URL = "sqlite:///./studyplan.db"
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-class Topic(Base):
-    __tablename__ = "topics"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    deadline = Column(Date, nullable=True)
-    progress = Column(Integer, default=0)  # 0..100
-
-
 Base.metadata.create_all(bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-# --- Schemas ---
-
-
-class TopicCreate(BaseModel):
-    title: constr(strip_whitespace=True, min_length=1)  # нельзя пустую строку
-    deadline: Optional[date] = None
-
-
-class TopicResponse(BaseModel):
-    id: int
-    title: str
-    deadline: Optional[date] = None
-    progress: int
-
-    class Config:
-        orm_mode = True
-
-
-class ProgressUpdate(BaseModel):
-    progress: int = Field(..., ge=0, le=100)  # проверка диапазона 0..100
-
-
-# --- Endpoints ---
 
 
 @app.post("/topics", response_model=TopicResponse)
