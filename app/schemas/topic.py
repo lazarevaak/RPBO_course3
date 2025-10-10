@@ -2,11 +2,11 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, ConfigDict, Field, constr
 
 
 class TopicCreate(BaseModel):
-    title: constr(strip_whitespace=True, min_length=1)  # нельзя пустую строку
+    title: constr(strip_whitespace=True, min_length=1)
     deadline: Optional[date] = None
 
 
@@ -16,9 +16,8 @@ class TopicResponse(BaseModel):
     deadline: Optional[date] = None
     progress: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProgressUpdate(BaseModel):
-    progress: int = Field(..., ge=0, le=100)  # проверка диапазона 0..100
+    progress: int = Field(..., ge=0, le=100)
