@@ -38,17 +38,17 @@
 
 ## Связь с NFR (P03)
 
-- R1 → **NFR-09** (TLS/HSTS, headers)
-- R2 → **NFR-10** (CORS)
-- R3 → **NFR-02** (Единый формат ошибок)
-- R4 → **NFR-08** (Идемпотентность/консистентность)
-- R5/R10 → **NFR-01, NFR-06** (Latency/Error rate)
-- R6 → **NFR-06** (Body limit)
-- R7 → **NFR-04** (ORM-only)
-- R8 → **NFR-05** (Аудит/логирование)
-- R9 → **NFR-07** (Coverage ≥ 80%)
-- R11 → **NFR-11** (AuthN/AuthZ, отложено)
-- R12 → **NFR-08** (Транзакционность CRUD)
+- R1 → **NFR-09** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/16
+- R2 → **NFR-10** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/17
+- R3 → **NFR-02** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/18
+- R4 → **NFR-08** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/19
+- R5/R10 → **NFR-01, NFR-06** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/20
+- R6 → **NFR-06** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/21
+- R7 → **NFR-04** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/22
+- R8 → **NFR-05** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/23
+- R9 → **NFR-07** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/24
+- R11 → **NFR-11** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/25
+- R12 → **NFR-08** https://github.com/hse-secdev-2025-fall/course-project-lazarevaak/issues/26
 
 ---
 
