@@ -1,10 +1,10 @@
-# tests/conftest.py
 """
 Глобальные фикстуры для тестов:
 - Перенастраиваем БД на test-экземпляр через ENV (до импорта app.main)
 - Перед КАЖДЫМ тестом очищаем таблицу topics (autouse=True)
 - Добавляем корень репозитория в sys.path для стабильного импорта
 """
+
 import os
 import sys
 from pathlib import Path
@@ -45,3 +45,16 @@ def clean_db():
     _create_schema()
     _truncate_topics()
     yield
+
+
+# 4) Клиент FastAPI для тестов
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.main import app  # noqa: E402
+
+
+@pytest.fixture(scope="session")
+def client():
+    """Общий TestClient на сессию тестов."""
+    with TestClient(app) as c:
+        yield c
