@@ -36,3 +36,12 @@ jobs:
 
       - name: Pre-commit (all files)
         run: pre-commit run --all-files
+
+      - name: Static Analysis (mypy + bandit)
+        run: |
+          mypy app
+          bandit -r app -ll
+
+      - name: Tests with coverage
+        run: |
+          pytest --cov=app --cov-report=term-missing -v

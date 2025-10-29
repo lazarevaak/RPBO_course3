@@ -5,15 +5,20 @@ import time
 import uuid
 from collections import defaultdict
 from datetime import date
+from pathlib import Path
 from typing import Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, constr
+
+from app.config import mask_sensitive
+from app.secure_files import secure_save
+from app.utils.errors import problem_json
 
 # ===================== БД и модели =====================
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./studyplan.db")
@@ -99,43 +104,6 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(
-        "%s %s rid=%s",
-        request.method,
-        request.url.path,
-        getattr(request.state, "request_id", "-"),
-    )
-    response = await call_next(request)
-    logger.info(
-        "%s %s -> %s rid=%s",
-        request.method,
-        request.url.path,
-        response.status_code,
-        getattr(request.state, "request_id", "-"),
-    )
-    return response
-
-
-# ---- RFC7807 helper ----
-def problem_json(
-    request: Request,
-    status: int,
-    title: str,
-    detail: object | None = None,
-    type_: str = "about:blank",
-):
-    return {
-        "type": type_,
-        "title": title,
-        "status": status,
-        "detail": detail,
-        "instance": str(request.url),
-        "correlation_id": getattr(request.state, "request_id", None),
-    }
-
-
 # ---- Лимит размера тела (ADR-003) ----
 MAX_BODY_BYTES = int(os.getenv("APP_MAX_BODY_BYTES", str(2 * 1024 * 1024)))
 
@@ -191,16 +159,6 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# ---- Глобальные обработчики ошибок (ADR-001) ----
-@app.exception_handler(HTTPException)
-async def http_exc_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=problem_json(request, exc.status_code, "HTTP Error", str(exc.detail)),
-        media_type="application/problem+json",
-    )
-
-
 @app.exception_handler(RequestValidationError)
 async def validation_exc_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
@@ -232,6 +190,10 @@ async def unhandled_exc_handler(request: Request, exc: Exception):
 # ===================== CRUD эндпоинты =====================
 @app.post("/topics", response_model=TopicResponse)
 def create_topic(data: TopicCreate, db: orm.Session = Depends(get_db)):
+    # 🔒 Проверка: дедлайн не может быть в прошлом
+    if data.deadline and data.deadline < date.today():
+        raise HTTPException(status_code=422, detail="Deadline cannot be in the past")
+
     existing = (
         db.query(Topic)
         .filter(sa.and_(Topic.title == data.title, Topic.deadline == data.deadline))
@@ -239,6 +201,7 @@ def create_topic(data: TopicCreate, db: orm.Session = Depends(get_db)):
     )
     if existing:
         raise HTTPException(status_code=409, detail="Topic duplicate")
+
     topic = Topic(title=data.title, deadline=data.deadline)
     db.add(topic)
     db.commit()
@@ -279,3 +242,54 @@ def delete_topic(topic_id: int, db: orm.Session = Depends(get_db)):
     db.delete(topic)
     db.commit()
     return {"status": "deleted"}
+
+
+@app.exception_handler(HTTPException)
+async def http_exc_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 422:
+        return JSONResponse(
+            status_code=422,
+            content=problem_json(
+                request,
+                422,
+                "Validation Error",
+                detail=str(exc.detail),
+                type_="https://example.com/errors/validation",
+            ),
+            media_type="application/problem+json",
+        )
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=problem_json(request, exc.status_code, "HTTP Error", str(exc.detail)),
+        media_type="application/problem+json",
+    )
+
+
+UPLOAD_DIR = Path("./uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+@app.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    data = await file.read()
+    try:
+        path = secure_save(UPLOAD_DIR, data)
+        return {"status": "ok", "path": str(path.name)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    safe_body = mask_sensitive(body if isinstance(body, dict) else {})
+    logger.info("Request %s %s body=%s", request.method, request.url.path, safe_body)
+    response = await call_next(request)
+    logger.info(
+        "Response %s %s -> %s", request.method, request.url.path, response.status_code
+    )
+    return response
