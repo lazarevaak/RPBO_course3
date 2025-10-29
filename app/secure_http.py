@@ -1,4 +1,3 @@
-# app/secure_http.py
 import time
 
 import httpx
@@ -8,13 +7,15 @@ MAX_RETRIES = 3
 
 
 def safe_get(url: str) -> httpx.Response:
+    last_exc: Exception | None = None
     for attempt in range(MAX_RETRIES):
         try:
             with httpx.Client(timeout=TIMEOUT) as client:
                 response = client.get(url, follow_redirects=True)
                 response.raise_for_status()
                 return response
-        except Exception:
-            if attempt == MAX_RETRIES - 1:
-                raise
-            time.sleep(0.5 * (attempt + 1))
+        except Exception as e:
+            last_exc = e
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError("All retries failed") from last_exc

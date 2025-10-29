@@ -1,4 +1,4 @@
-# app/utils/errors.py
+from typing import Any
 from uuid import uuid4
 
 from fastapi import Request
@@ -8,10 +8,9 @@ def problem_json(
     request: Request,
     status: int,
     title: str,
-    detail: str | dict | None = None,
-    type_: str = "about:blank",  # <-- важно!
-) -> dict:
-    """RFC 7807-compatible error response"""
+    detail: Any | None = None,
+    type_: str = "about:blank",
+) -> dict[str, Any]:
     cid = getattr(request.state, "request_id", str(uuid4()))
     return {
         "type": type_,
