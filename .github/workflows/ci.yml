@@ -45,3 +45,32 @@ jobs:
       - name: Tests with coverage
         run: |
           pytest --cov=app --cov-report=term-missing -v
+
+                # ---------- C4: Dockerfile Lint (Hadolint) ----------
+      - name: Dockerfile Lint (Hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+        continue-on-error: true
+
+      - name: Build Docker image for Trivy
+        run: docker build -t studyplan-app:latest .
+
+      - name: Trivy Scan (High + Critical)
+        uses: aquasecurity/trivy-action@0.17.0
+        with:
+          image-ref: studyplan-app:latest
+          format: 'table'
+          output: 'trivy-report.txt'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '0'
+        env:
+          TRIVY_TIMEOUT: 5m
+
+      - name: Upload security artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            trivy-report.txt
