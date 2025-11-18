@@ -12,51 +12,122 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+      - name: Set up environment secrets (dev/prod)
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "ENV=${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
+            echo "DATABASE_URL=${{ secrets.DB_URL_PROD }}" >> $GITHUB_ENV
+          else
+            echo "ENV=${{ secrets.ENV_DEV }}" >> $GITHUB_ENV
+            echo "DATABASE_URL=${{ secrets.DB_URL_DEV }}" >> $GITHUB_ENV
+          fi
+
+      - name: Cache pip (optimized)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip build
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Lint & Format
         run: |
+          mkdir -p reports
           ruff check --output-format=github .
+          ruff check --output-format=full > reports/ruff-${{ matrix.python-version }}.html
           black --check .
           isort --check-only .
+
+      - name: Type check (mypy)
+        run: mypy app
+
+      - name: Security scan (bandit)
+        run: bandit -r app -ll
 
       - name: Tests
         run: pytest -q
 
+      - name: Tests with coverage
+        run: |
+          mkdir -p htmlcov reports
+          pytest --cov=app --cov-report=xml \
+                 --cov-report=html \
+                 --cov-report=term-missing \
+                 --junitxml=reports/junit-${{ matrix.python-version }}.xml
+
+      - name: Build wheel package
+        run: |
+          python -m build --wheel
+        continue-on-error: true
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.python-version }}
+          path: dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-${{ matrix.python-version }}
+          path: reports/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-html-${{ matrix.python-version }}
+          path: htmlcov/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-html-${{ matrix.python-version }}
+          path: reports/ruff-${{ matrix.python-version }}.html
+
       - name: Pre-commit (all files)
         run: pre-commit run --all-files
 
-      - name: Static Analysis (mypy + bandit)
-        run: |
-          mypy app
-          bandit -r app -ll
-
-      - name: Tests with coverage
-        run: |
-          pytest --cov=app --cov-report=term-missing -v
-
-                # ---------- C4: Dockerfile Lint (Hadolint) ----------
       - name: Dockerfile Lint (Hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
         continue-on-error: true
 
-      - name: Build Docker image for Trivy
-        run: docker build -t studyplan-app:latest .
+      - name: Build Docker with layer cache
+        run: |
+          docker build \
+            --cache-from=type=gha \
+            --cache-to=type=gha,mode=max \
+            -t studyplan-app:latest .
+
+      - name: Save Docker image
+        run: docker save studyplan-app:latest -o studyplan-app-${{ matrix.python-version }}.tar
+
+      - name: Upload Docker Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ matrix.python-version }}
+          path: studyplan-app-${{ matrix.python-version }}.tar
 
       - name: Trivy Scan (High + Critical)
+        if: matrix.python-version == '3.12'
         uses: aquasecurity/trivy-action@0.17.0
         with:
           image-ref: studyplan-app:latest
@@ -69,8 +140,8 @@ jobs:
           TRIVY_TIMEOUT: 5m
 
       - name: Upload security artifacts
+        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
-          path: |
-            trivy-report.txt
+          name: security-reports-3.12
+          path: trivy-report.txt
