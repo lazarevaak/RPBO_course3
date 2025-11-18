@@ -127,6 +127,7 @@ jobs:
           path: studyplan-app-${{ matrix.python-version }}.tar
 
       - name: Trivy Scan (High + Critical)
+        if: matrix.python-version == '3.12'
         uses: aquasecurity/trivy-action@0.17.0
         with:
           image-ref: studyplan-app:latest
@@ -139,7 +140,8 @@ jobs:
           TRIVY_TIMEOUT: 5m
 
       - name: Upload security artifacts
+        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: security-reports-3.12
           path: trivy-report.txt
