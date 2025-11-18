@@ -6,18 +6,35 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 # -----------------------------
-# DATABASE URL selection logic
+# Select DATABASE_URL depending on environment
 # -----------------------------
+env = os.getenv("ENV", "local")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    # Render позволяет писать только в /var/data
-    data_dir = Path("/var/data")
-    data_dir.mkdir(parents=True, exist_ok=True)
+if DATABASE_URL:
+    print(f"[INFO] Using DATABASE_URL from environment: {DATABASE_URL}")
 
-    sqlite_path = data_dir / "studyplan.db"
-    DATABASE_URL = f"sqlite:///{sqlite_path}"
-    print(f"[INFO] Falling back to SQLite at {sqlite_path}")
+else:
+    # ------------ CI mode ------------
+    if env == "ci":
+        # GitHub Actions — только локальная SQLite!
+        sqlite_path = Path("./ci-test.db")
+        DATABASE_URL = f"sqlite:///{sqlite_path}"
+        print(f"[INFO] CI mode: using SQLite at {sqlite_path}")
+
+    # ------------ Render production ------------
+    elif env == "prod":
+        # Render позволяет писать только в /var/data/
+        sqlite_path = Path("/var/data/studyplan.db")
+        sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        DATABASE_URL = f"sqlite:///{sqlite_path}"
+        print(f"[INFO] Render PROD: using SQLite at {sqlite_path}")
+
+    # ------------ Local dev ------------
+    else:
+        sqlite_path = Path("./studyplan.db")
+        DATABASE_URL = f"sqlite:///{sqlite_path}"
+        print(f"[INFO] Local DEV: using SQLite at {sqlite_path}")
 
 
 # -----------------------------

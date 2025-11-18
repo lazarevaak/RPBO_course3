@@ -18,15 +18,15 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - name: Set up environment secrets (dev/prod)
+
+      - name: Force CI environment
+        run: echo "ENV=ci" >> $GITHUB_ENV
+
+      - name: Set up environment secrets (prod only)
+        if: github.ref == 'refs/heads/main'
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "ENV=${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
-            echo "DATABASE_URL=${{ secrets.DB_URL_PROD }}" >> $GITHUB_ENV
-          else
-            echo "ENV=${{ secrets.ENV_DEV }}" >> $GITHUB_ENV
-            echo "DATABASE_URL=${{ secrets.DB_URL_DEV }}" >> $GITHUB_ENV
-          fi
+          echo "ENV=${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
+          echo "DATABASE_URL=${{ secrets.DB_URL_PROD }}" >> $GITHUB_ENV
 
       - name: Cache pip (optimized)
         uses: actions/cache@v4
@@ -73,8 +73,7 @@ jobs:
                  --junitxml=reports/junit-${{ matrix.python-version }}.xml
 
       - name: Build wheel package
-        run: |
-          python -m build --wheel
+        run: python -m build --wheel
         continue-on-error: true
 
       - name: Upload wheel artifact
