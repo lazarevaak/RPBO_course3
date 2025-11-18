@@ -3,8 +3,10 @@ on:
   pull_request:
   push:
     branches: [main]
+
 permissions:
   contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -16,17 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Force CI environment
-        run: echo "ENV=ci" >> $GITHUB_ENV
-
-      - name: Set up environment secrets (prod only)
-        if: github.ref == 'refs/heads/main'
         run: |
-          echo "ENV=${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
-          echo "DATABASE_URL=${{ secrets.DB_URL_PROD }}" >> $GITHUB_ENV
+          echo "ENV=ci" >> $GITHUB_ENV
+          echo "DATABASE_URL=" >> $GITHUB_ENV
 
       - name: Cache pip (optimized)
         uses: actions/cache@v4
@@ -103,7 +102,7 @@ jobs:
       - name: Pre-commit (all files)
         run: pre-commit run --all-files
 
-      - name: Dockerfile Lint (Hadolint)
+      - name: Dockerfile Lint
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
@@ -125,7 +124,7 @@ jobs:
           name: docker-image-${{ matrix.python-version }}
           path: studyplan-app-${{ matrix.python-version }}.tar
 
-      - name: Trivy Scan (High + Critical)
+      - name: Trivy Scan
         if: matrix.python-version == '3.12'
         uses: aquasecurity/trivy-action@0.17.0
         with:
