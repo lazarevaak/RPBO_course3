@@ -1,0 +1,49 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  build-image:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t secdev-app:latest .
+
+      - name: Save Docker image as artifact
+        run: |
+          docker save secdev-app:latest -o secdev-app.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: secdev-app.tar
+
+
+  mock-deploy:
+    name: Mock Deploy (staging)
+    needs: build-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Simulate deployment
+        run: |
+          echo "🚀 Mock deploy to staging started"
+          echo "Using image: secdev-app:latest"
+          echo "ENV: ${{ secrets.ENV }}"
+          echo "DB_URL: (hidden)"
+          echo "No real infrastructure touched."
+          echo "Deploy SUCCESS ✔"
