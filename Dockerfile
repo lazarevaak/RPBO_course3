@@ -23,6 +23,8 @@ WORKDIR /app
 
 RUN useradd -ms /bin/bash appuser
 
+RUN mkdir -p /var/data && chown -R appuser:appuser /var/data
+
 RUN mkdir -p /app/db /app/uploads /app/logs \
     && chown -R appuser:appuser /app/db /app/uploads /app/logs
 
