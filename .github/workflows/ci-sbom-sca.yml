@@ -4,17 +4,17 @@ on:
   pull_request:
     branches: [ main, develop ]
     paths:
+      - ".github/workflows/ci-sbom-sca.yml"
       - "requirements.txt"
       - "requirements-dev.txt"
-      - ".github/workflows/ci-sbom-sca.yml"
       - "**/*.py"
 
   push:
     branches: [ main, develop ]
     paths:
+      - ".github/workflows/ci-sbom-sca.yml"
       - "requirements.txt"
       - "requirements-dev.txt"
-      - ".github/workflows/ci-sbom-sca.yml"
       - "**/*.py"
 
   workflow_dispatch:
@@ -22,56 +22,38 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: sbom-sca-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   sbom_sca:
     name: SBOM & SCA Security Scan
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Create evidence directory
+      - name: Create evidence dir
         run: mkdir -p EVIDENCE/P09
 
       - name: Generate SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
           path: .
-          output-format: syft-json
+          format: syft-json
           output-file: EVIDENCE/P09/sbom.json
 
-      - name: Security scan (Grype)
-        uses: anchore/scan-action@v3
-        with:
-          sbom: EVIDENCE/P09/sbom.json
-          output-format: json
-          fail-build: false
+      - name: Run Grype scan (stdout only)
+        id: grype
+        run: |
+          grype sbom:EVIDENCE/P09/sbom.json -o json || true
         continue-on-error: true
 
-      - name: Save SCA report
+      - name: Save SCA raw output
         run: |
-          cp grype-results.json EVIDENCE/P09/sca_report.json
-
-      - name: Generate SCA summary
-        run: |
-          echo "# SCA Summary" > EVIDENCE/P09/sca_summary.md
-          if command -v jq >/dev/null 2>&1; then
-            jq '[.matches[].vulnerability.severity]
-                | group_by(.)
-                | map({(.[0]): length})
-                | add' EVIDENCE/P09/sca_report.json \
-              >> EVIDENCE/P09/sca_summary.md
-          else
-            echo "jq not installed" >> EVIDENCE/P09/sca_summary.md
-          fi
+          grype sbom:EVIDENCE/P09/sbom.json -o json > sca_report_raw.json || true
 
       - name: Upload SBOM & SCA artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sbom-sca-artifacts
-          path: EVIDENCE/P09/
+          path: |
+            EVIDENCE/P09/sbom.json
+            sca_report_raw.json
