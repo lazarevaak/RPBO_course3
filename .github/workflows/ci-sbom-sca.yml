@@ -1,6 +1,14 @@
 name: Security - SBOM & SCA
 
 on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - ".github/workflows/ci-sbom-sca.yml"
+      - "**/*.py"
+
   push:
     branches: [ main, develop ]
     paths:
@@ -8,6 +16,7 @@ on:
       - "requirements-dev.txt"
       - ".github/workflows/ci-sbom-sca.yml"
       - "**/*.py"
+
   workflow_dispatch:
 
 permissions:
@@ -54,7 +63,7 @@ jobs:
                 | add' EVIDENCE/P09/sca_report.json \
               >> EVIDENCE/P09/sca_summary.md
           else
-            echo "jq not found, skipping JSON summary" >> EVIDENCE/P09/sca_summary.md
+            echo "jq not found, skipping summary generation" >> EVIDENCE/P09/sca_summary.md
           fi
 
       - name: Upload SBOM & SCA artifacts
