@@ -28,9 +28,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Create evidence dir
+      - name: Create evidence directory
         run: mkdir -p EVIDENCE/P09
 
       - name: Generate SBOM (Syft)
@@ -40,15 +41,14 @@ jobs:
           format: syft-json
           output-file: EVIDENCE/P09/sbom.json
 
-      - name: Run Grype scan (stdout only)
-        id: grype
+      - name: Install Grype
         run: |
-          grype sbom:EVIDENCE/P09/sbom.json -o json || true
-        continue-on-error: true
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | \
+            sudo sh -s -- -b /usr/local/bin
 
-      - name: Save SCA raw output
+      - name: Run Grype scan (SCA)
         run: |
-          grype sbom:EVIDENCE/P09/sbom.json -o json > sca_report_raw.json || true
+          grype sbom:EVIDENCE/P09/sbom.json -o json > EVIDENCE/P09/sca_report.json || true
 
       - name: Upload SBOM & SCA artifacts
         uses: actions/upload-artifact@v4
@@ -56,4 +56,4 @@ jobs:
           name: sbom-sca-artifacts
           path: |
             EVIDENCE/P09/sbom.json
-            sca_report_raw.json
+            EVIDENCE/P09/sca_report.json
