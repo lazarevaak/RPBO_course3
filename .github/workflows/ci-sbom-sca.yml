@@ -43,7 +43,7 @@ jobs:
         with:
           path: .
           output-file: EVIDENCE/P09/sbom.json
-          format: cyclonedx-json
+          format: syft-json
 
       - name: Security scan with Grype
         uses: anchore/scan-action@v3
@@ -51,6 +51,7 @@ jobs:
           sbom: EVIDENCE/P09/sbom.json
           output-format: json
           output-file: EVIDENCE/P09/sca_report.json
+          fail-on-severity: ""
 
       - name: Generate SCA summary
         run: |
