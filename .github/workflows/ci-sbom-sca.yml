@@ -38,8 +38,8 @@ jobs:
       - name: Ensure EVIDENCE/P09 exists
         run: mkdir -p EVIDENCE/P09
 
-      - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@v0.21.0
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
         with:
           path: .
           output-file: EVIDENCE/P09/sbom.json
