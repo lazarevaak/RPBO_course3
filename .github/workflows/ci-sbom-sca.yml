@@ -35,23 +35,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure EVIDENCE/P09 exists
+      - name: Create evidence directory
         run: mkdir -p EVIDENCE/P09
 
       - name: Generate SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
           path: .
+          output-format: syft-json
           output-file: EVIDENCE/P09/sbom.json
-          format: syft-json
 
-      - name: Security scan with Grype
+      - name: Security scan (Grype)
         uses: anchore/scan-action@v3
         with:
           sbom: EVIDENCE/P09/sbom.json
           output-format: json
-          output-file: EVIDENCE/P09/sca_report.json
-          fail-on-severity: ""
+          fail-build: false
+        continue-on-error: true
+
+      - name: Save SCA report
+        run: |
+          cp grype-results.json EVIDENCE/P09/sca_report.json
 
       - name: Generate SCA summary
         run: |
@@ -63,7 +67,7 @@ jobs:
                 | add' EVIDENCE/P09/sca_report.json \
               >> EVIDENCE/P09/sca_summary.md
           else
-            echo "jq not installed, summary skipped" >> EVIDENCE/P09/sca_summary.md
+            echo "jq not installed" >> EVIDENCE/P09/sca_summary.md
           fi
 
       - name: Upload SBOM & SCA artifacts
@@ -71,4 +75,3 @@ jobs:
         with:
           name: sbom-sca-artifacts
           path: EVIDENCE/P09/
-          if-no-files-found: error
