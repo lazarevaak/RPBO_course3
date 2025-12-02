@@ -1,0 +1,65 @@
+name: Security - SBOM & SCA
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - ".github/workflows/ci-sbom-sca.yml"
+      - "**/*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-sca-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbom_sca:
+    name: SBOM & SCA Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure EVIDENCE/P09 exists
+        run: mkdir -p EVIDENCE/P09
+
+      - name: Generate SBOM via Syft
+        uses: anchore/syft-action@v0.15.1
+        with:
+          image: "dir:."
+          output: "cyclonedx-json"
+          artifact-name: "sbom.json"
+          output-file: "EVIDENCE/P09/sbom.json"
+
+      - name: Run SCA scan via Grype
+        uses: anchore/grype-action@v0.14.0
+        with:
+          sbom: "EVIDENCE/P09/sbom.json"
+          output-format: "json"
+          output-file: "EVIDENCE/P09/sca_report.json"
+
+      - name: Generate SCA summary
+        run: |
+          echo "# SCA Summary" > EVIDENCE/P09/sca_summary.md
+          if command -v jq >/dev/null 2>&1; then
+            jq '[.matches[].vulnerability.severity]
+                | group_by(.)
+                | map({(.[0]): length})
+                | add' EVIDENCE/P09/sca_report.json \
+              >> EVIDENCE/P09/sca_summary.md
+          else
+            echo "jq not found, skipping JSON summary" >> EVIDENCE/P09/sca_summary.md
+          fi
+
+      - name: Upload SBOM & SCA artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-sca-artifacts
+          path: EVIDENCE/P09/
+          if-no-files-found: error
