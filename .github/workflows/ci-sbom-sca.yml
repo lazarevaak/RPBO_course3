@@ -1,0 +1,59 @@
+name: Security - SBOM & SCA
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - ".github/workflows/ci-sbom-sca.yml"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "**/*.py"
+
+  push:
+    branches: [ main, develop ]
+    paths:
+      - ".github/workflows/ci-sbom-sca.yml"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "**/*.py"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom_sca:
+    name: SBOM & SCA Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create evidence directory
+        run: mkdir -p EVIDENCE/P09
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: syft-json
+          output-file: EVIDENCE/P09/sbom.json
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | \
+            sudo sh -s -- -b /usr/local/bin
+
+      - name: Run Grype scan (SCA)
+        run: |
+          grype sbom:EVIDENCE/P09/sbom.json -o json > EVIDENCE/P09/sca_report.json || true
+
+      - name: Upload SBOM & SCA artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-sca-artifacts
+          path: |
+            EVIDENCE/P09/sbom.json
+            EVIDENCE/P09/sca_report.json

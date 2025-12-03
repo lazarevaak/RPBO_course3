@@ -1,0 +1,23 @@
+policy:
+  review_period_days: 30
+  severity_require_waiver:
+    - high
+    - critical
+  notes: >
+    Waiver используется только если уязвимость невозможно исправить немедленно
+    или отсутствует фикс upstream. При наличии исправления — обязательное обновление
+    зависимости вместо waiver.
+
+waivers:
+  - id: "CVE-2024-53981"
+    package: "python-multipart"
+    vulnerable_version: "0.0.9"
+    fixed_version: "0.0.18"
+    severity: "High"
+    status: "resolved"
+    reason: >
+      Уязвимость исправлена обновлением зависимости python-multipart
+      до версии 0.0.18. Waiver не активируется.
+    commit: "https://github.com/<your-org>/<your-repo>/issues/<id>"
+    resolved_at: "<commit-date>"
+    approved_by: "<your-name>"
