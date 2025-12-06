@@ -1,0 +1,30 @@
+title = "Custom Gitleaks Config for StudyPlan App"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allowlist for bundle IDs, project namespaces (false positives)"
+regexes = [
+  '''(?i)(com\.example\.|app\.mycorp\.|studyplan\.app)'''
+]
+
+[[allowlists]]
+description = "Allowlist for dummy/test tokens used in CI and examples"
+regexes = [
+  '''(TEST_TOKEN|DUMMY_KEY|EXAMPLE_SECRET|PLACEHOLDER_TOKEN)'''
+]
+
+[[allowlists]]
+description = "SQLAlchemy __tablename__ patterns (not secrets)"
+regexes = [
+  '''__tablename__\s*=\s*["'][a-zA-Z0-9_]+["']'''
+]
+
+[[allowlists]]
+description = "Binary signatures (magic bytes) are not secrets"
+regexes = [
+  '''\\x89PNG''',
+  '''\\xff\\xd8''',
+  '''\\xff\\xd9'''
+]

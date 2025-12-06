@@ -1,0 +1,40 @@
+name: Security – Gitleaks Secret Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  gitleaks:
+    name: Run Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare evidence directory
+        run: mkdir -p EVIDENCE/P10
+
+      - name: Run Gitleaks via Docker
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}":/repo \
+            zricethezav/gitleaks:latest detect \
+              --source=/repo \
+              --config=/repo/security/.gitleaks.toml \
+              --report-format=json \
+              --report-path=/repo/EVIDENCE/P10/gitleaks.json \
+              --no-banner || true
+
+      - name: Show reports
+        run: ls -la EVIDENCE/P10
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: EVIDENCE/P10/gitleaks.json
