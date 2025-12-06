@@ -1,30 +1,23 @@
-title = "Custom Gitleaks Config for StudyPlan App"
+title = "Custom Gitleaks Config"
 
 [extend]
 useDefault = true
 
 [[allowlists]]
-description = "Allowlist for bundle IDs, project namespaces (false positives)"
+description = "Ignore bundle IDs"
 regexes = [
-  '''(?i)(com\.example\.|app\.mycorp\.|studyplan\.app)'''
+  '''(?i)(com\.example\.|app\.example\.)'''
 ]
 
 [[allowlists]]
-description = "Allowlist for dummy/test tokens used in CI and examples"
+description = "Ignore fake test secrets"
 regexes = [
-  '''(TEST_TOKEN|DUMMY_KEY|EXAMPLE_SECRET|PLACEHOLDER_TOKEN)'''
+  '''TRRR_TOKEN_[0-9a-zA-Z]+'''
 ]
 
-[[allowlists]]
-description = "SQLAlchemy __tablename__ patterns (not secrets)"
-regexes = [
-  '''__tablename__\s*=\s*["'][a-zA-Z0-9_]+["']'''
-]
-
-[[allowlists]]
-description = "Binary signatures (magic bytes) are not secrets"
-regexes = [
-  '''\\x89PNG''',
-  '''\\xff\\xd8''',
-  '''\\xff\\xd9'''
-]
+[[rules]]
+id = "fake-secret"
+description = "Catch fake API keys for test"
+regex = '''TRRR_TOKEN_[0-9a-zA-Z]+'''
+secretGroup = 0
+entropy = 0.0
