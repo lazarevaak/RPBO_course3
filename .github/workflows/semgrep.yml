@@ -1,0 +1,47 @@
+name: SAST (P10)
+
+on:
+  push:
+    paths:
+      - "**/*.py"
+      - "security/**"
+      - ".github/workflows/semgrep.yml"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep SAST Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep Action (CI mode)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: |
+            p/ci
+            security/semgrep/rules.yml
+        continue-on-error: true
+
+      - name: Generate SARIF report (docker, no pip)
+        run: |
+          mkdir -p EVIDENCE/P10
+          docker run --rm \
+            -v "${{ github.workspace }}":/src \
+            returntocorp/semgrep:latest \
+            semgrep \
+              --config p/ci \
+              --config /src/security/semgrep/rules.yml \
+              --sarif \
+              --output /src/EVIDENCE/P10/semgrep.sarif \
+              /src \
+              || true
+
+      - name: Upload SARIF report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sast-sarif
+          path: EVIDENCE/P10/semgrep.sarif

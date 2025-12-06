@@ -1,0 +1,17 @@
+title = "Custom Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "fake-secret"
+description = "Detect fake test API keys for CI test"
+regex = '''TRRR_TOKEN_[0-9A-Za-z]+'''
+secretGroup = 0
+entropy = 0.0
+
+  [rules.allowlist]
+  description = "Allow this fake key only in tests"
+  regexes = [
+    '''ALLOW_THIS_FAKE_KEY'''
+  ]
