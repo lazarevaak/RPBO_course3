@@ -3,10 +3,6 @@ name: SAST (Semgrep)
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - "**/*.py"
-      - "security/semgrep/**"
-      - ".github/workflows/semgrep.yml"
   pull_request:
     branches: [ main, develop ]
 
@@ -19,27 +15,27 @@ concurrency:
 
 jobs:
   semgrep:
-    name: Semgrep SAST Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare evidence directory
         run: mkdir -p EVIDENCE/P10
 
-      - name: Run Semgrep
+      - name: Semgrep SAST Scan
         uses: returntocorp/semgrep-action@v1
         with:
           config: |
             p/ci
             security/semgrep/rules.yml
-          sarif: "EVIDENCE/P10/semgrep.sarif"
+          generateSarif: true
+          output: EVIDENCE/P10/semgrep.sarif
         continue-on-error: true
 
-      - name: Upload Semgrep SARIF
+      - name: Upload SARIF
         uses: actions/upload-artifact@v4
         with:
           name: semgrep-sast-report
