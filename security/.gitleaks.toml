@@ -3,21 +3,15 @@ title = "Custom Gitleaks Config"
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Ignore bundle IDs"
-regexes = [
-  '''(?i)(com\.example\.|app\.example\.)'''
-]
-
-[[allowlists]]
-description = "Ignore fake test secrets"
-regexes = [
-  '''TRRR_TOKEN_[0-9a-zA-Z]+'''
-]
-
 [[rules]]
 id = "fake-secret"
-description = "Catch fake API keys for test"
-regex = '''TRRR_TOKEN_[0-9a-zA-Z]+'''
+description = "Detect fake test API keys for CI test"
+regex = '''TRRR_TOKEN_[0-9A-Za-z]+'''
 secretGroup = 0
 entropy = 0.0
+
+  [rules.allowlist]
+  description = "Allow this fake key only in tests"
+  regexes = [
+    '''ALLOW_THIS_FAKE_KEY'''
+  ]

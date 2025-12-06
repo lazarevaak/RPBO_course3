@@ -1,0 +1,23 @@
+[
+ {
+  "RuleID": "fake-secret",
+  "Description": "Detect fake test API keys for CI test",
+  "StartLine": 2,
+  "EndLine": 2,
+  "StartColumn": 13,
+  "EndColumn": 39,
+  "Match": "TRRR_TOKEN_1234567890abcdef",
+  "Secret": "TRRR_TOKEN_1234567890abcdef",
+  "File": "app/dummy_secret_test.py",
+  "SymlinkFile": "",
+  "Commit": "fc3a8cacb8e1e0f970d8c3262cd701a913bbc99e",
+  "Link": "https://github.com/lazarevaak/RPBO_course3/blob/fc3a8cacb8e1e0f970d8c3262cd701a913bbc99e/app/dummy_secret_test.py#L2",
+  "Entropy": 4.4306326,
+  "Author": "lazarevaak (Лазарева Александра)",
+  "Email": "lazarevaak@yandex.ru",
+  "Date": "2025-12-06T22:50:32Z",
+  "Message": "с2",
+  "Tags": [],
+  "Fingerprint": "fc3a8cacb8e1e0f970d8c3262cd701a913bbc99e:app/dummy_secret_test.py:fake-secret:2"
+ }
+]
