@@ -1,0 +1,36 @@
+rules:
+  # 1 — Нельзя хранить секреты в конфиге
+  - id: studyplan-hardcoded-secret
+    patterns:
+      - pattern: $SECRET = "$VALUE"
+    message: "Hardcoded secret detected. Move this value to environment variables."
+    languages: [python]
+    severity: WARNING
+
+  # 2 — Ловим прямые SQL-запросы (в учебных проектах иногда делают raw SQL)
+  - id: studyplan-raw-sql
+    patterns:
+      - pattern: cursor.execute($QUERY)
+    message: "Raw SQL query found — use SQLAlchemy ORM to avoid SQL injection risks."
+    languages: [python]
+    severity: WARNING
+
+  # 3 — Запрещён print() в прод-коде сервиса
+  - id: studyplan-debug-print
+    patterns:
+      - pattern: print($X)
+    message: "Debug print found. Replace with structured logging (logging.info/debug)."
+    languages: [python]
+    severity: INFO
+
+  # 4 — Нельзя глушить исключения
+  - id: studyplan-broad-except
+    patterns:
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              ...
+    message: "Catching broad Exception makes debugging harder. Catch specific exceptions."
+    languages: [python]
+    severity: WARNING
