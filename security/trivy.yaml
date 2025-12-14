@@ -1,0 +1,10 @@
+format: json
+severity:
+  - CRITICAL
+  - HIGH
+ignore-unfixed: true
+exit-code: 0
+timeout: 5m
+vuln-type:
+  - os
+  - library

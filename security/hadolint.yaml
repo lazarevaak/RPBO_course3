@@ -1,0 +1,14 @@
+failure-threshold: error
+
+ignored:
+  - DL3008
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+
+override:
+  error:
+    - DL3002
+    - DL3003
+    - DL4006
