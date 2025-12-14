@@ -1,7 +1,7 @@
 # app/config.py
 import os
 
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///./studyplan.db")
+DB_URL = os.getenv("DATABASE_URL", "sqlite:////app/db/studyplan.db")
 API_KEY = os.getenv("API_KEY", "dummy")  # из env, не хардкодим
 LOG_MASK_FIELDS = ["password", "token", "secret"]
 

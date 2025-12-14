@@ -10,22 +10,25 @@ logger = logging.getLogger("database")
 logger.setLevel(logging.INFO)
 
 env = os.getenv("ENV", "local").lower()
-DATABASE_URL = os.getenv("DATABASE_URL")
+
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("DB_URL")
 
 if DATABASE_URL:
-    logger.info("Using DATABASE_URL from environment: %s", DATABASE_URL)
+    logger.info("Using DATABASE_URL from environment")
 
 else:
-    if env == "ci":
-        sqlite_path = Path("./ci-test.db")
-    elif env == "prod":
-        sqlite_path = Path("/var/data/studyplan.db")
+    if env in {"ci", "test"}:
+        sqlite_path = Path("./test_studyplan.db")
+
+    elif env in {"prod", "production"}:
+        sqlite_path = Path("/app/db/studyplan.db")
+
     else:
         sqlite_path = Path("./studyplan.db")
 
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     DATABASE_URL = f"sqlite:///{sqlite_path}"
-    logger.info("%s mode: using SQLite at %s", env.upper(), sqlite_path)
+    logger.info("Using SQLite database at %s", sqlite_path)
 
 
 class Base(DeclarativeBase):
@@ -39,7 +42,11 @@ engine = create_engine(
     ),
 )
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
 
 
 def get_db() -> Generator[Session, None, None]:
