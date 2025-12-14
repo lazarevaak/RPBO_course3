@@ -1,0 +1,108 @@
+name: Security — DAST (ZAP Baseline)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "app/**"
+      - "**/*.py"
+      - "requirements*.txt"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.yaml"
+      - "compose.yml"
+      - "compose.yaml"
+      - ".github/workflows/ci-p11-dast.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "**/*.py"
+      - "requirements*.txt"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.yaml"
+      - "compose.yml"
+      - "compose.yaml"
+      - ".github/workflows/ci-p11-dast.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dast_zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare EVIDENCE/P11
+        run: |
+          mkdir -p EVIDENCE/P11
+          chmod -R 777 EVIDENCE/P11
+
+      - name: Start StudyPlan service (docker compose)
+        run: |
+          docker compose up -d --build
+          docker compose ps
+
+      - name: Wait for service health
+        run: |
+          echo "Waiting for http://localhost:8000/topics ..."
+          timeout 120 bash -c '
+            until curl -sf http://localhost:8000/topics > /dev/null; do
+              sleep 2
+            done
+          '
+          curl -sf http://localhost:8000/topics
+
+      - name: ZAP Baseline scan (HTML + JSON)
+        run: |
+          docker pull ghcr.io/zaproxy/zaproxy:stable
+          docker run --rm --network host \
+            -v "$PWD":/zap/wrk \
+            -w /zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t http://localhost:8000 \
+              -r EVIDENCE/P11/zap_baseline.html \
+              -J EVIDENCE/P11/zap_baseline.json \
+              -d || true
+
+      - name: Build ZAP summary
+        if: always()
+        run: |
+          echo "# ZAP Baseline Summary (P11)" > EVIDENCE/P11/zap_summary.md
+          echo "" >> EVIDENCE/P11/zap_summary.md
+          echo "**Target:** http://localhost:8000" >> EVIDENCE/P11/zap_summary.md
+          echo "" >> EVIDENCE/P11/zap_summary.md
+
+          if [ -f EVIDENCE/P11/zap_baseline.json ]; then
+            echo "## Alerts by risk level" >> EVIDENCE/P11/zap_summary.md
+            jq -r '
+              (.. | objects | .alerts? // empty) as $a
+              | ([$a] | add | flatten) // []
+              | group_by(.riskdesc // "Unknown")
+              | map({risk: (.[0].riskdesc // "Unknown"), count: length})
+              | .[]
+              | "- \(.risk): \(.count)"
+            ' EVIDENCE/P11/zap_baseline.json >> EVIDENCE/P11/zap_summary.md || true
+          else
+            echo "ZAP report was not generated." >> EVIDENCE/P11/zap_summary.md
+          fi
+
+      - name: Upload P11 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: P11_EVIDENCE
+          path: EVIDENCE/P11
+
+      - name: Cleanup docker resources
+        if: always()
+        run: docker compose down --remove-orphans
