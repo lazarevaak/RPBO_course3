@@ -10,7 +10,7 @@ services:
       - "8000:8000"
 
     environment:
-      DATABASE_URL: "sqlite:///./studyplan.db"
+      DATABASE_URL: "sqlite:////app/db/studyplan.db"
       APP_MAX_BODY_BYTES: "2097152"
       APP_RATE_LIMIT_RPM: "60"
       CORS_ALLOWED_ORIGINS: "http://localhost:5173"
@@ -23,8 +23,6 @@ services:
 
     security_opt:
       - no-new-privileges:true
-      - seccomp:./seccomp.json
-      - apparmor:studyplan-apparmor-profile
 
     cap_drop:
       - ALL
