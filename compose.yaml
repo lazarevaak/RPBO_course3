@@ -23,8 +23,6 @@ services:
 
     security_opt:
       - no-new-privileges:true
-      - seccomp:./seccomp.json
-      - apparmor:studyplan-apparmor-profile
 
     cap_drop:
       - ALL
